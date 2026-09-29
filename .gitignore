@@ -1,0 +1,25 @@
+# Private chat exports and local databases
+/data/
+/chat.txt
+/chat.md
+/chat*.json
+/dc_chat*.json
+*.db
+*.db-*
+
+# Local deployment configuration and secrets
+/.vercel/
+/vercel.json
+.env
+.env.*
+!.env.example
+
+# Python local files
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local editor and operating-system files
+.DS_Store
+Thumbs.db

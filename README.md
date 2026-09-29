@@ -35,4 +35,4 @@ LoreSync is being prepared for public development. Please open an issue to discu
 
 ## License
 
-Copyright 2026 sparshsharmadev. Licensed under the [Apache License, Version 2.0](LICENSE).
+Copyright 2026 Sparsh Sharma. Licensed under the [Apache License, Version 2.0](LICENSE).
