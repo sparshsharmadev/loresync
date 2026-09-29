@@ -1,0 +1,11 @@
+{
+  "name": "loresync",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "npm run dev --workspace @loresync/web",
+    "build": "npm run build --workspace @loresync/web",
+    "lint": "npm run lint --workspace @loresync/web"
+  }
+}

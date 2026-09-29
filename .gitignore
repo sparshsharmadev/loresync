@@ -1,25 +1,34 @@
-# Private chat exports and local databases
-/data/
-/chat.txt
-/chat.md
-/chat*.json
-/dc_chat*.json
-*.db
-*.db-*
+# Dependency and build output
+node_modules/
+**/.next/
+**/out/
+coverage/
+*.tsbuildinfo
 
-# Local deployment configuration and secrets
-/.vercel/
-/vercel.json
+# Environment and deployment secrets
 .env
 .env.*
 !.env.example
+.vercel/
+vercel.json
+*.pem
 
-# Python local files
+# Private chat exports, databases, and local data
+**/data/
+**/chat*.txt
+**/chat*.md
+**/chat*.json
+**/dc_chat*.json
+**/*.db
+**/*.db-*
+**/*.sqlite
+**/*.sqlite3
+
+# Local Python and editor files
 __pycache__/
 *.py[cod]
 .venv/
 venv/
-
-# Local editor and operating-system files
 .DS_Store
 Thumbs.db
+*.log

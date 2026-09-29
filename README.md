@@ -1,37 +1,54 @@
 # LoreSync
 
-**Turn chat history into insights, stories, and shared memories.**
+**Make room for your story.**
 
-LoreSync is an open-source conversation intelligence and memory platform. The long-term goal is to help people understand their conversations through relationship analytics, interactive timelines, memorable moments, and story-like recaps.
+LoreSync turns personal chat exports into private, browsable conversation histories and relationship insights. The web app is the first client; import and analytics code lives in a shared TypeScript package for future desktop and mobile clients.
 
-> **Project status: early development.** This public repository currently contains the project overview and license while the prototype is reviewed for release. Signup, account-based uploads, cloud processing, local-only analysis, and shared workspaces are not implemented yet. Do not use a hosted instance with sensitive conversations.
+> **Early development:** WhatsApp text and Discord JSON imports can be analyzed in a browser. Local mode saves the parsed conversation in that browser's IndexedDB. Optional cloud accounts use Supabase Auth and owner-scoped Postgres rows. Cloud mode is inactive until a project is configured. Features and data handling are still changing; do not upload sensitive conversations to an unreviewed deployment.
 
-## What exists today
+## Product principles
 
-An unpublished local prototype has WhatsApp text and Discord JSON parsers, a SQLite-backed analytics API, and a Flask interface for dashboards, search, conversation replay, bookmarks, and milestones. It was built around one local dataset and is being reviewed before any source is added to this public repository.
+- The user chooses local or cloud storage for each analysis.
+- Local analysis runs in the browser and stays in IndexedDB on that device.
+- Cloud mode stores parsed message text and derived analysis under the signed-in user's account; the original export file stays in the browser.
+- Cloud rows use PostgreSQL row-level security so a user can access only their own analyses and messages.
+- Conversations can involve people other than the uploader. Sharing features will require an explicit invitation and recipient acceptance.
+- Initial analytics are deterministic. AI analysis is outside the first release scope.
 
-Personal chat exports, populated databases, deployment credentials, and real conversation examples are intentionally excluded from this public repository.
+## Run locally
 
-## Product direction
+Requirements: Node.js 20.9 or later and npm.
 
-- Rebuild the web experience for individual accounts and user-owned analyses.
-- Support a browser-only mode where chat content stays on the user's device, alongside an optional cloud mode.
-- Add explicit invitations and recipient acceptance before sharing a cloud analysis.
-- Keep analytics deterministic in the first public product release; AI features are not planned for that release.
-- Prepare shared application foundations for future desktop and mobile clients.
-- Explore iMessage and Telegram imports after the current WhatsApp and Discord import paths are productized.
+```sh
+npm install
+npm run dev
+```
 
-## Development
+Open `http://localhost:3000`. Local import works without a backend account. WhatsApp exports use `.txt`; Discord exports use `.json`.
 
-The existing prototype is not yet packaged for clean, public setup. Reproducible setup instructions and synthetic fixtures will be added as the multi-user application is built. No application source or real chat data is included in this repository yet.
+## Enable cloud accounts
 
-## Privacy
+1. Create a Supabase project.
+2. Copy `apps/web/.env.example` to `apps/web/.env.local` and set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (never a secret or service-role key).
+3. Enable the Supabase Cron (`pg_cron`) extension, then apply `supabase/migrations/202609290001_initial_schema.sql` to the project database. The migration schedules daily deletion of cloud analyses after one year.
+4. Configure email confirmation and the allowed redirect URLs in Supabase Auth for your local and deployed origins.
+5. Restart the web app and create an account at `/account`.
 
-Chat exports can contain highly personal information about multiple people. Keep exports and generated databases out of Git, use synthetic data for development, and review any deployment's data handling before uploading conversations. See `.gitignore` for files excluded from local version control.
+Cloud mode parses the export in the browser and then sends normalized message rows to Supabase. It does not upload the source export file. Cloud analyses expire after one year and the migration schedules daily deletion. Confirm scheduled job runs and align any backup retention with this promise before production.
 
-## Contributing
+## Repository layout
 
-LoreSync is being prepared for public development. Please open an issue to discuss substantial product or architecture changes before starting a large contribution. Contributions are subject to the license below.
+```text
+apps/web/                 Next.js web client
+packages/core/            Shared TypeScript import and analytics logic
+supabase/migrations/      Database schema and row-level security policies
+```
+
+## Privacy and development
+
+Use synthetic conversations for development. Chat exports, databases, `.env` files, and local deployment state are ignored by Git. Before production, add automated deletion/retention controls, review upload and account flows, establish a privacy policy and terms, and configure backups and incident handling.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance and [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
 ## License
 
