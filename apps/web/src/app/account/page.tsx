@@ -19,7 +19,12 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (!cloudAvailable) return;
-    getSupabase().auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? null));
+    const supabase = getSupabase();
+    supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? null));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user.email ?? null);
+    });
+    return () => listener.subscription.unsubscribe();
   }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -29,9 +34,14 @@ export default function AccountPage() {
     try {
       const supabase = getSupabase();
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/account` } });
+        const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/account` } });
         if (error) throw error;
-        setStatus("A confirmation link is on its way. Follow it to open your cloud archive.");
+        if (data.session) {
+          setUserEmail(data.user?.email ?? email);
+          setStatus("Your account is ready. Open your cloud workspace whenever you like.");
+        } else {
+          setStatus("A confirmation link is on its way. Follow it to open your cloud archive.");
+        }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -46,9 +56,14 @@ export default function AccountPage() {
   }
 
   async function signOut() {
-    await getSupabase().auth.signOut();
-    setUserEmail(null);
-    setStatus("You’ve signed out.");
+    try {
+      const { error } = await getSupabase().auth.signOut();
+      if (error) throw error;
+      setUserEmail(null);
+      setStatus("You’ve signed out.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not sign out. Please try again.");
+    }
   }
 
   return (
@@ -77,7 +92,7 @@ export default function AccountPage() {
               <Link href="/" className="account-submit">Keep exploring locally <b>↗</b></Link>
             </div>
           ) : userEmail ? (
-            <div className="signed-in-state"><div className="signed-avatar">{userEmail[0]?.toUpperCase()}</div><p>Your archive is open.<br /><span>Cloud conversations are kept for one year.</span></p><Link href="/" className="account-submit">Go to workspace <b>↗</b></Link><button className="quiet-button" onClick={signOut}>Sign out</button></div>
+            <div className="signed-in-state"><div className="signed-avatar">{userEmail[0]?.toUpperCase()}</div><p>Your archive is open.<br /><span>Cloud conversations are kept for one year.</span></p><Link href="/workspace" className="account-submit">Go to workspace <b>↗</b></Link><button className="quiet-button" onClick={signOut}>Sign out</button></div>
           ) : (
             <>
               <div className="account-tabs" role="tablist" aria-label="Account action"><button className={mode === "signup" ? "selected" : ""} onClick={() => setMode("signup")}>CREATE ACCOUNT</button><button className={mode === "signin" ? "selected" : ""} onClick={() => setMode("signin")}>SIGN IN</button></div>

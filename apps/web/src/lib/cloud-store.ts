@@ -1,55 +1,103 @@
 import type { ChatMessage, ChatSummary } from "@loresync/core";
 import { getSupabase } from "./supabase";
 
+const MESSAGE_BATCH_SIZE = 250;
+const MAX_UPLOAD_CHUNK_BYTES = 1_400_000;
+const MESSAGE_ARRAY_OVERHEAD = new TextEncoder().encode('{"messages":[]}').byteLength;
+
+type ApiResult<T> = T & { error?: string };
+
+export type CloudAnalysisRecord = {
+  id: string;
+  title: string;
+  platform: "whatsapp" | "discord";
+  message_count: number;
+  participant_count: number;
+  summary: ChatSummary;
+  created_at: string;
+  expires_at: string;
+};
+
+function splitMessageChunks(messages: ChatMessage[]) {
+  const encoder = new TextEncoder();
+  const chunks: ChatMessage[][] = [];
+  let batch: ChatMessage[] = [];
+  let batchBytes = MESSAGE_ARRAY_OVERHEAD;
+
+  for (const message of messages) {
+    const messageBytes = encoder.encode(JSON.stringify(message)).byteLength;
+    const nextBytes = batchBytes + messageBytes + (batch.length ? 1 : 0);
+    if (batch.length && (batch.length >= MESSAGE_BATCH_SIZE || nextBytes > MAX_UPLOAD_CHUNK_BYTES)) {
+      chunks.push(batch);
+      batch = [];
+      batchBytes = MESSAGE_ARRAY_OVERHEAD;
+    }
+    if (batchBytes + messageBytes > MAX_UPLOAD_CHUNK_BYTES) {
+      throw new Error("A message is too large to send to the cloud archive.");
+    }
+    batch.push(message);
+    batchBytes += messageBytes + (batch.length > 1 ? 1 : 0);
+  }
+  if (batch.length) chunks.push(batch);
+  return chunks;
+}
+
+async function cloudRequest<T>(path: string, method: string, accessToken: string, body?: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method,
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  const result = await response.json().catch(() => ({})) as ApiResult<T>;
+  if (!response.ok) throw new Error(result.error ?? "The cloud request could not be completed.");
+  return result;
+}
+
+async function getAccessToken() {
+  const { data, error } = await getSupabase().auth.getSession();
+  if (error || !data.session?.access_token) throw new Error("Sign in to use your cloud archive.");
+  return data.session.access_token;
+}
+
+export async function loadCloudAnalyses(): Promise<CloudAnalysisRecord[]> {
+  const token = await getAccessToken();
+  const result = await cloudRequest<{ analyses: CloudAnalysisRecord[] }>("/api/analyses", "GET", token);
+  return result.analyses;
+}
+
 export async function saveCloudAnalysis(
   title: string,
   platform: "whatsapp" | "discord",
   messages: ChatMessage[],
-  summary: ChatSummary,
-) {
-  const supabase = getSupabase();
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) throw new Error("Sign in to save an analysis to your cloud workspace.");
-
-  const { data: analysis, error } = await supabase
-    .from("analyses")
-    .insert({
-      owner_id: user.id,
-      title,
-      platform,
-      message_count: summary.messageCount,
-      participant_count: summary.participantCount,
-      first_message_at: summary.firstMessageAt,
-      last_message_at: summary.lastMessageAt,
-      summary,
-    })
-    .select("id")
-    .single();
-  if (error) throw new Error(error.message);
+  consentAccepted: boolean,
+): Promise<{ id: string; summary: ChatSummary }> {
+  if (!consentAccepted) throw new Error("Confirm cloud storage before continuing.");
+  const token = await getAccessToken();
+  const { id } = await cloudRequest<{ id: string }>("/api/analyses", "POST", token, {
+    title,
+    platform,
+    consentAccepted,
+  });
 
   try {
-    for (let start = 0; start < messages.length; start += 500) {
-      const chunk = messages.slice(start, start + 500).map((message) => ({
-        owner_id: user.id,
-        analysis_id: analysis.id,
-        sent_at: message.timestamp,
-        sender: message.sender,
-        content: message.content,
-        platform,
-        has_attachment: message.hasAttachment,
-        source_id: message.rawId ?? null,
-      }));
-      const { error: messageError } = await supabase.from("messages").insert(chunk);
-      if (messageError) throw new Error(messageError.message);
+    for (const chunk of splitMessageChunks(messages)) {
+      await cloudRequest<{ inserted: number }>(`/api/analyses/${id}/messages`, "POST", token, {
+        messages: chunk,
+      });
     }
-  } catch (saveError) {
-    await supabase.from("analyses").delete().eq("id", analysis.id);
-    throw saveError;
+    const completed = await cloudRequest<{ id: string; summary: ChatSummary }>(`/api/analyses/${id}/complete`, "POST", token);
+    return { id: completed.id, summary: completed.summary };
+  } catch (error) {
+    await cloudRequest<{ deleted: boolean }>(`/api/analyses/${id}`, "DELETE", token).catch(() => undefined);
+    throw error;
   }
-  return analysis.id as string;
 }
 
 export async function deleteCloudAnalysis(id: string) {
-  const { error } = await getSupabase().from("analyses").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  const token = await getAccessToken();
+  await cloudRequest<{ deleted: boolean }>(`/api/analyses/${id}`, "DELETE", token);
 }

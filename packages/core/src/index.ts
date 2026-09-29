@@ -123,9 +123,9 @@ export function summarizeMessages(messages: ChatMessage[]): ChatSummary {
   for (const message of messages) {
     participants.set(message.sender, (participants.get(message.sender) ?? 0) + 1);
     const date = new Date(message.timestamp);
-    const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const day = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
     days.set(day, (days.get(day) ?? 0) + 1);
-    hours[date.getHours()] += 1;
+    hours[date.getUTCHours()] += 1;
     if (message.hasAttachment) attachmentCount += 1;
   }
   const sorted = [...messages].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
@@ -133,7 +133,7 @@ export function summarizeMessages(messages: ChatMessage[]): ChatSummary {
   return {
     messageCount: messages.length,
     participantCount: participants.size,
-    participants: [...participants].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count),
+    participants: [...participants].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
     firstMessageAt: sorted[0].timestamp,
     lastMessageAt: sorted[sorted.length - 1].timestamp,
     activeDays: days.size,
