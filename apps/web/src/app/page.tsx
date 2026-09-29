@@ -9,18 +9,50 @@ import { deleteLocalAnalysis, loadLocalAnalyses, saveLocalAnalysis, type SavedAn
 import { cloudAvailable, getSupabase } from "@/lib/supabase";
 
 type Mode = "local" | "cloud";
-type CloudAnalysis = { id: string; title: string; platform: "whatsapp" | "discord"; message_count: number; summary: ChatSummary; created_at: string; expires_at: string };
+type Platform = "whatsapp" | "discord";
+type CloudAnalysis = { id: string; title: string; platform: Platform; message_count: number; summary: ChatSummary; created_at: string; expires_at: string };
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
 }
 
-function formatRange(first: string, last: string) {
-  return `${formatDate(first)} — ${formatDate(last)}`;
-}
-
 function shortCount(value: number) {
   return new Intl.NumberFormat(undefined, { notation: value >= 10000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(value);
+}
+
+function platformLabel(platform: Platform) {
+  return platform === "whatsapp" ? "WhatsApp" : "Discord";
+}
+
+function ArchiveMark() {
+  return <span className="archive-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M8 5v21h17"/><path d="M14 5v15h11"/><circle cx="24.5" cy="7.5" r="2"/></svg></span>;
+}
+
+function OrbitArtwork() {
+  return (
+    <div className="orbit-art" aria-hidden="true">
+      <div className="orbit-wash" />
+      <svg className="orbit-svg" viewBox="0 0 520 380" fill="none">
+        <circle cx="286" cy="185" r="46" className="orbit-core" />
+        <circle cx="286" cy="185" r="86" className="orbit-ring orbit-ring-a" />
+        <circle cx="286" cy="185" r="132" className="orbit-ring orbit-ring-b" />
+        <circle cx="286" cy="185" r="177" className="orbit-ring orbit-ring-c" />
+        <path d="M109 185h354M286 8v354" className="orbit-axis" />
+        <path d="M165 90c42-39 100-61 161-57" className="orbit-arc" />
+        <path d="M416 267c-37 44-91 72-151 78" className="orbit-arc orbit-arc-muted" />
+        <circle cx="165" cy="90" r="5" className="orbit-node orbit-node-one" />
+        <circle cx="410" cy="111" r="4" className="orbit-node orbit-node-two" />
+        <circle cx="222" cy="309" r="5" className="orbit-node orbit-node-three" />
+        <circle cx="286" cy="185" r="9" className="orbit-sun" />
+        <path d="M274 185h24M286 173v24" className="orbit-cross" />
+        <circle cx="286" cy="185" r="21" className="orbit-pulse" />
+      </svg>
+      <div className="orbit-caption orbit-caption-top"><span>01 / A PRIVATE ATLAS</span><span>LOCAL FIRST</span></div>
+      <div className="orbit-caption orbit-caption-bottom"><span>EVERY CONVERSATION</span><span>HAS A SHAPE</span></div>
+      <div className="orbit-side-note">A SMALL UNIVERSE<br />MADE OF WORDS</div>
+      <div className="orbit-index">26° 12′ N<br />80° 21′ E</div>
+    </div>
+  );
 }
 
 export default function Home() {
@@ -31,7 +63,7 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [summary, setSummary] = useState<ChatSummary | null>(null);
   const [activeTitle, setActiveTitle] = useState("");
-  const [activePlatform, setActivePlatform] = useState<"whatsapp" | "discord">("whatsapp");
+  const [activePlatform, setActivePlatform] = useState<Platform>("whatsapp");
   const [activeAnalysisId, setActiveAnalysisId] = useState<string | null>(null);
   const [localAnalyses, setLocalAnalyses] = useState<SavedAnalysis[]>([]);
   const [cloudAnalyses, setCloudAnalyses] = useState<CloudAnalysis[]>([]);
@@ -57,7 +89,7 @@ export default function Home() {
   function selectFile(next: File | null) {
     if (!next) return;
     const extension = next.name.split(".").pop()?.toLowerCase();
-    if (!(["txt", "json"].includes(extension ?? ""))) {
+    if (!(extension === "txt" || extension === "json")) {
       setFile(null);
       setStatus("Choose a WhatsApp .txt or Discord .json export.");
       return;
@@ -85,8 +117,7 @@ export default function Home() {
   }
 
   async function analyze() {
-    if (!file) return;
-    if (mode === "cloud" && (!cloudAvailable || !userEmail)) return;
+    if (!file || (mode === "cloud" && (!cloudAvailable || !userEmail))) return;
     setBusy(true);
     setStatus(mode === "local" ? "Reading your export on this device…" : "Preparing your cloud analysis…");
     try {
@@ -102,30 +133,24 @@ export default function Home() {
         worker.postMessage({ name: file.name, text });
       });
       const platform = result.messages[0].platform;
+      const title = file.name.replace(/\.(txt|json)$/i, "");
       setSummary(result.summary);
       setMessages(result.messages);
+      setActiveTitle(title);
       setActivePlatform(platform);
-      setActiveTitle(file.name.replace(/\.(txt|json)$/i, ""));
       if (mode === "local") {
-        const saved: SavedAnalysis = {
-          id: crypto.randomUUID(),
-          title: file.name.replace(/\.(txt|json)$/i, ""),
-          platform,
-          summary: result.summary,
-          messages: result.messages,
-          savedAt: new Date().toISOString(),
-        };
+        const saved: SavedAnalysis = { id: crypto.randomUUID(), title, platform, summary: result.summary, messages: result.messages, savedAt: new Date().toISOString() };
         await saveLocalAnalysis(saved);
         setActiveAnalysisId(saved.id);
         setLocalAnalyses((previous) => [saved, ...previous]);
-        setStatus("Analysis ready. Your export and results are saved in this browser only.");
+        setStatus("Your story is ready. The export and analysis are saved in this browser only.");
       } else {
-        const savedId = await saveCloudAnalysis(file.name.replace(/\.(txt|json)$/i, ""), platform, result.messages, result.summary);
+        const savedId = await saveCloudAnalysis(title, platform, result.messages, result.summary);
         setActiveAnalysisId(savedId);
         const supabase = getSupabase();
         const { data: rows } = await supabase.from("analyses").select("id,title,platform,message_count,summary,created_at,expires_at").order("created_at", { ascending: false });
         if (rows) setCloudAnalyses(rows as CloudAnalysis[]);
-      setStatus("Cloud analysis saved. The original export stayed in your browser.");
+        setStatus("Cloud analysis saved. The original export stayed in your browser.");
       }
       setFile(null);
     } catch (error) {
@@ -136,25 +161,19 @@ export default function Home() {
     }
   }
 
-  async function openLocal(analysis: SavedAnalysis) {
+  function openLocal(analysis: SavedAnalysis) {
     setSummary(analysis.summary);
     setMessages(analysis.messages);
     setActiveTitle(analysis.title);
     setActivePlatform(analysis.platform);
     setActiveAnalysisId(analysis.id);
-    setFile(null);
   }
 
   async function removeLocal(id: string) {
     if (!window.confirm("Delete this conversation and its local analysis from this browser?")) return;
     await deleteLocalAnalysis(id);
-    const rows = await loadLocalAnalyses();
-    setLocalAnalyses(rows);
-      if (activeAnalysisId === id) {
-      setSummary(null);
-      setMessages([]);
-      setActiveTitle("");
-    }
+    setLocalAnalyses(await loadLocalAnalyses());
+    if (activeAnalysisId === id) { setSummary(null); setMessages([]); setActiveTitle(""); setActiveAnalysisId(null); }
   }
 
   async function removeCloud(id: string) {
@@ -162,11 +181,7 @@ export default function Home() {
     try {
       await deleteCloudAnalysis(id);
       setCloudAnalyses((rows) => rows.filter((row) => row.id !== id));
-      if (activeAnalysisId === id) {
-        setSummary(null);
-        setMessages([]);
-        setActiveTitle("");
-      }
+      if (activeAnalysisId === id) { setSummary(null); setMessages([]); setActiveTitle(""); setActiveAnalysisId(null); }
       setStatus("Cloud analysis deleted.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not delete this cloud analysis.");
@@ -183,118 +198,118 @@ export default function Home() {
     setConsent(false);
   }
 
-  const bars = summary?.dailyActivity.slice(-42) ?? [];
-  const maxDay = Math.max(1, ...bars.map((item) => item.count));
+  const activity = summary?.dailyActivity.slice(-42) ?? [];
+  const maxDay = Math.max(1, ...activity.map((day) => day.count));
+  const analysisCount = mode === "local" ? localAnalyses.length : cloudAnalyses.length;
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <Link href="/" className="wordmark"><span className="brand-mark">l</span> loresync</Link>
-        <div className="side-label">YOUR SPACE</div>
-        <a className="side-link active" href="#workspace"><span className="side-icon">◫</span> Workspace</a>
-        <a className="side-link" href="#import"><span className="side-icon">＋</span> Import a chat</a>
-        <a className="side-link" href="#saved"><span className="side-icon">⌁</span> Saved analyses <span className="side-count">{mode === "local" ? localAnalyses.length : cloudAnalyses.length}</span></a>
-        <div className="side-spacer" />
-        <div className="privacy-card">
-          <div className="privacy-symbol">✳</div>
-          <div className="privacy-title">Your conversations, your call.</div>
-          <p>Choose where each analysis lives. Switch modes any time.</p>
-          <a href="#privacy">How privacy works <span>↗</span></a>
+    <div className="archive-app">
+      <aside className="archive-rail">
+        <Link href="/" className="wordmark"><ArchiveMark /><span>lore<span>sync</span></span></Link>
+        <div className="rail-kicker">YOUR PRIVATE COLLECTION</div>
+        <nav className="rail-nav" aria-label="Workspace">
+          <a className="rail-link active" href="#top"><span className="rail-glyph">⌂</span><span>Overview</span><span className="rail-active-dot" /></a>
+          <a className="rail-link" href="#import"><span className="rail-glyph">＋</span><span>Open an archive</span></a>
+          <a className="rail-link" href="#saved"><span className="rail-glyph">◷</span><span>Saved conversations</span><span className="rail-counter">{analysisCount.toString().padStart(2, "0")}</span></a>
+        </nav>
+        <div className="rail-lower">
+          <div className="rail-constellation" aria-hidden="true"><i /><i /><i /><i /><i /><i /><span /></div>
+          <p className="rail-note">Not everything worth keeping<br />fits inside the chat.</p>
+          <div className="rail-status"><span className="status-light" /><span>{mode === "local" ? "STORED ON THIS DEVICE" : "CLOUD ARCHIVE"}</span></div>
+          <Link href="/account" className="rail-account"><span className="account-monogram">{userEmail?.[0]?.toUpperCase() ?? "S"}</span><span className="rail-account-copy"><b>{userEmail ?? "Personal archive"}</b><small>{userEmail ? "Your account" : "Local workspace"}</small></span><span className="account-arrow">↗</span></Link>
         </div>
-        <Link href="/account" className="profile-link"><span className="profile-avatar">{userEmail?.[0]?.toUpperCase() ?? "S"}</span><span><b>{userEmail ?? "Personal workspace"}</b><small>{userEmail ? "Cloud account" : "No account needed"}</small></span><span className="profile-more">···</span></Link>
+        <div className="rail-version">LORESYNC <span>—</span> FIELD NOTES Nº 01</div>
       </aside>
 
-      <main className="main-content" id="workspace">
-        <header className="topbar">
-          <div className="breadcrumb"><span>Workspace</span><span className="crumb-slash">/</span><strong>{summary ? activeTitle : "Overview"}</strong></div>
-          <div className="top-actions"><span className="secure-label"><i /> Private workspace</span><Link href="/account" className="avatar-link">{userEmail?.[0]?.toUpperCase() ?? "↗"}</Link></div>
+      <div className="archive-main">
+        <header className="archive-topbar">
+          <div className="topbar-crumb"><span>THE ARCHIVE</span><i>/</i><b>{summary ? activeTitle : "OVERVIEW"}</b></div>
+          <div className="topbar-tools"><span className="vault-indicator"><i />{mode === "local" ? "ON-DEVICE VAULT" : "CLOUD VAULT"}</span><span className="topbar-rule" /><Link href="/account" className="topbar-profile" aria-label="Account settings">{userEmail?.[0]?.toUpperCase() ?? "↗"}</Link></div>
         </header>
 
-        <div className="page-wrap">
-          <section className="welcome-row">
-            <div>
-              <div className="eyebrow">A LITTLE MORE CONTEXT</div>
-              <h1>Make room for <em>your story.</em></h1>
-              <p className="welcome-copy">Turn the conversations that matter into a timeline you can return to.</p>
+        <main className="archive-content" id="top">
+          <section className="hero-stage">
+            <div className="hero-copy">
+              <div className="chapter-line"><span>AN ATLAS OF THE EVERYDAY</span><i /><span>VOL. 01</span></div>
+              <h1>Every story<br />leaves a <em>trace.</em></h1>
+              <p>Bring a conversation back into view.<br />Find the rhythms, small rituals, and moments inside it.</p>
+              <a className="hero-link" href="#import"><span>Open your first archive</span><b>↓</b></a>
+              <div className="hero-footnote"><span>01</span><span>MADE FOR THE MOMENTS<br />BETWEEN THE MESSAGES</span></div>
             </div>
-            <div className="date-stamp"><span className="stamp-orbit">◎</span><span>EST. IN THE MOMENTS<br /><b>YOU KEEP</b></span></div>
+            <div className="hero-art-wrap"><OrbitArtwork /></div>
+            <div className="hero-edge-note">A PRIVATE PLACE<br />TO REMEMBER</div>
           </section>
 
-          <section className="import-panel" id="import">
-            <div className="panel-heading">
-              <div><div className="eyebrow">START WITH A CHAT</div><h2>Bring a conversation in</h2></div>
-              <span className="step-marker">01 <i /> 02</span>
-            </div>
-            <div className="mode-switch" role="tablist" aria-label="Choose where your analysis is saved">
-              <button className={mode === "local" ? "mode-option selected" : "mode-option"} onClick={() => changeMode("local")} role="tab" aria-selected={mode === "local"}>
-                <span className="mode-glyph local-glyph">⌂</span><span className="mode-text"><b>Keep it on this device</b><small>Private analysis · no account</small></span><span className="radio-mark" />
-              </button>
-              <button className={mode === "cloud" ? "mode-option selected" : "mode-option"} onClick={() => changeMode("cloud")} role="tab" aria-selected={mode === "cloud"}>
-                <span className="mode-glyph cloud-glyph">↗</span><span className="mode-text"><b>Save to my cloud workspace</b><small>Sync across devices · account needed</small></span><span className="radio-mark" />
-              </button>
-            </div>
+          <section className="import-section" id="import">
+            <div className="section-overline"><span>01 / THE ARRIVAL</span><span>YOUR EXPORT STAYS YOURS</span></div>
+            <div className="import-heading"><div><h2>Open an <em>archive.</em></h2><p>Start with a chat export. Choose where the story should live.</p></div><span className="section-mark">✳</span></div>
 
-            {mode === "cloud" && (!cloudAvailable || !userEmail) && (
-              <div className="cloud-gate">
-                <span className="lock-mark">⌑</span>
-                <div><b>{!cloudAvailable ? "Cloud workspace is not connected yet" : "Sign in to use cloud mode"}</b><p>{!cloudAvailable ? "Your local analysis is ready to use. Cloud signup becomes available after the project’s database keys are configured." : "Sign in before importing. You’ll review the cloud storage details before anything leaves this browser."}</p></div>
-                <Link href="/account" className="small-link">{!cloudAvailable ? "Setup details" : "Open account"} ↗</Link>
+            <div className="import-workbench">
+              <div className="workbench-main">
+                <label className={`file-portal ${dragging ? "is-dragging" : ""} ${file ? "has-file" : ""}`} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={onDrop}>
+                  <input type="file" accept=".txt,.json,text/plain,application/json" onChange={onFileInput} />
+                  <div className="portal-mark"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 8v22m0-22 8 8m-8-8-8 8" /><path d="M10 29v9h28v-9" /></svg></div>
+                  <div className="portal-copy"><b>{file ? file.name : "Place the conversation here"}</b><span>{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB · Ready to open` : "Drop an export, or browse your device"}</span></div>
+                  <span className="portal-choose">{file ? "CHANGE FILE" : "BROWSE FILES"}<b>↗</b></span>
+                  <div className="portal-formats"><span><i className="format-symbol whatsapp">w</i><b>WHATSAPP</b> .txt</span><i className="format-separator" /><span><i className="format-symbol discord">d</i><b>DISCORD</b> .json</span><i className="format-separator" /><span>UP TO 25 MB</span></div>
+                </label>
+                <div className="import-action-row"><p><span className="privacy-spark">✳</span>{mode === "local" ? "Parsed here. Stored here. Yours to remove." : "Only parsed messages are saved. The export file stays here."}</p><button className="open-button" onClick={analyze} disabled={!file || busy || (mode === "cloud" && (!cloudAvailable || !userEmail || !consent))}>{busy ? <><i className="button-spinner" /> Reading…</> : <>Read this conversation <span>↗</span></>}</button></div>
+                {status && <p className="import-status" role="status">{status}</p>}
               </div>
-            )}
 
-            {mode === "cloud" && cloudAvailable && userEmail && (
-              <label className="consent-row"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>I understand parsed message text and analysis will be saved to my account for one year, then deleted. The original export file stays on this device.</span></label>
-            )}
-
-            <label className={`drop-zone ${dragging ? "is-dragging" : ""} ${file ? "has-file" : ""}`} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={onDrop}>
-              <input type="file" accept=".txt,.json,text/plain,application/json" onChange={onFileInput} />
-              <span className="upload-icon">{file ? "✓" : "↑"}</span>
-              <span className="drop-title">{file ? file.name : "Drop your export here"}</span>
-              <span className="drop-subtitle">{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB · Ready to analyze` : "or choose a file from your device · up to 25 MB"}</span>
-              <span className="browse-button">{file ? "Choose another" : "Choose export"}</span>
-              <span className="format-hint"><b>WHATSAPP</b> .txt <i /> <b>DISCORD</b> .json</span>
-            </label>
-            <div className="import-footer">
-              <p className="privacy-inline"><span>✳</span>{mode === "local" ? "Local mode: the export never leaves this browser." : "Cloud mode: parsed messages stay for one year; the source file stays here."}</p>
-              <button className="analyze-button" onClick={analyze} disabled={!file || busy || (mode === "cloud" && (!cloudAvailable || !userEmail || !consent))}>{busy ? <><span className="button-spinner" /> Analyzing…</> : <>Analyze conversation <span>↗</span></>}</button>
+              <aside className="storage-choice" role="radiogroup" aria-label="Choose where this conversation is stored">
+                <div className="storage-label">CHOOSE ITS HOME <span>?</span></div>
+                <button className={`storage-option ${mode === "local" ? "selected" : ""}`} onClick={() => changeMode("local")} role="radio" aria-checked={mode === "local"}>
+                  <span className="storage-symbol local-symbol">⌂</span><span className="storage-copy"><b>This device</b><small>Private · no account needed</small></span><i className="storage-radio" />
+                </button>
+                <button className={`storage-option ${mode === "cloud" ? "selected" : ""}`} onClick={() => changeMode("cloud")} role="radio" aria-checked={mode === "cloud"}>
+                  <span className="storage-symbol cloud-symbol">↗</span><span className="storage-copy"><b>My cloud archive</b><small>Sync · account required</small></span><i className="storage-radio" />
+                </button>
+                {mode === "cloud" && (!cloudAvailable || !userEmail) && <div className="cloud-gate"><span>{!cloudAvailable ? "Cloud keys not connected yet." : "Sign in before opening a cloud archive."}</span><Link href="/account">{!cloudAvailable ? "Setup" : "Account"} ↗</Link></div>}
+                {mode === "cloud" && cloudAvailable && userEmail && <label className="consent-note"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>I agree to save parsed messages here for one year. The source export is never sent.</span></label>}
+                <div className="storage-footnote"><span>✳</span><p>Local mode keeps everything in this browser. Cloud mode gives you a year to revisit it, with deletion always in your hands.</p></div>
+              </aside>
             </div>
-            {status && <p className="status-message" role="status">{status}</p>}
           </section>
 
           {summary && (
-            <section className="analysis-section" aria-live="polite">
-              <div className="section-heading"><div><div className="eyebrow">THE BIG PICTURE</div><h2>{activeTitle}</h2></div><span className="platform-chip">{activePlatform === "whatsapp" ? "WhatsApp" : "Discord"} · {mode === "local" ? "On this device" : "Cloud workspace"}</span></div>
-              <div className="metrics-grid">
-                <article className="metric-card"><span className="metric-label">MESSAGES</span><strong>{shortCount(summary.messageCount)}</strong><small>across your export</small></article>
-                <article className="metric-card"><span className="metric-label">PEOPLE</span><strong>{summary.participantCount}</strong><small>distinct senders</small></article>
-                <article className="metric-card"><span className="metric-label">ACTIVE DAYS</span><strong>{shortCount(summary.activeDays)}</strong><small>days with a message</small></article>
-                <article className="metric-card"><span className="metric-label">MEDIA MARKERS</span><strong>{shortCount(summary.attachmentCount)}</strong><small>attachments referenced</small></article>
+            <section className="story-section" aria-live="polite">
+              <div className="section-overline"><span>02 / THE READING</span><span>{platformLabel(activePlatform).toUpperCase()} · {mode === "local" ? "ON THIS DEVICE" : "CLOUD ARCHIVE"}</span></div>
+              <div className="story-title-row"><div><div className="eyebrow">A FIRST LOOK INSIDE</div><h2>{activeTitle}</h2></div><span className="story-date">{formatDate(summary.firstMessageAt)} <i>—</i> {formatDate(summary.lastMessageAt)}</span></div>
+              <div className="story-metrics">
+                <article><span>MESSAGES KEPT</span><strong>{shortCount(summary.messageCount)}</strong><small>words sent into the world</small></article>
+                <article><span>VOICES HERE</span><strong>{summary.participantCount.toString().padStart(2, "0")}</strong><small>distinct participants</small></article>
+                <article><span>DAYS SHARED</span><strong>{shortCount(summary.activeDays)}</strong><small>with a message in them</small></article>
+                <article><span>ATTACHMENTS</span><strong>{shortCount(summary.attachmentCount)}</strong><small>media markers found</small></article>
               </div>
-              <div className="insights-grid">
-                <article className="insight-card activity-card"><div className="card-title-row"><div><span className="metric-label">WHEN YOU TALKED</span><h3>A rhythm, over time</h3></div><span className="activity-period">LAST {bars.length} ACTIVE DAYS</span></div>
-                  <div className="activity-chart" aria-label={`${bars.length} days of message activity`}>{bars.map((day) => <div className="activity-bar" key={day.date} title={`${formatDate(day.date)} · ${day.count} messages`}><i style={{ height: `${Math.max(4, (day.count / maxDay) * 100)}%` }} /></div>)}</div>
-                  <div className="chart-caption"><span>{bars[0] ? formatDate(bars[0].date) : "—"}</span><span>{bars[bars.length - 1] ? formatDate(bars[bars.length - 1].date) : "—"}</span></div>
+              <div className="story-visuals">
+                <article className="rhythm-panel">
+                  <div className="visual-heading"><div><span>THE CONVERSATION, IN TIME</span><h3>Some days leave a longer echo.</h3></div><span className="visual-stamp">LAST {activity.length} ACTIVE DAYS</span></div>
+                  <div className="rhythm-chart" aria-label="Daily message activity over time">{activity.map((day, index) => <div className="rhythm-column" key={day.date} title={`${formatDate(day.date)} · ${day.count} messages`}><i className={index % 7 === 0 ? "warm" : ""} style={{ height: `${Math.max(3, (day.count / maxDay) * 100)}%` }} /></div>)}</div>
+                  <div className="rhythm-dates"><span>{activity[0] ? formatDate(activity[0].date) : "—"}</span><span>{activity[activity.length - 1] ? formatDate(activity[activity.length - 1].date) : "—"}</span></div>
                 </article>
-                <article className="insight-card people-card"><div className="card-title-row"><div><span className="metric-label">IN THE CONVERSATION</span><h3>The voices in here</h3></div><span className="people-icon">↗</span></div>
-                  <div className="participant-list">{summary.participants.slice(0, 5).map((person, index) => <div className="participant" key={person.name}><span className={`person-dot person-${index % 4}`} /> <span className="person-name">{person.name}</span><span className="person-count">{shortCount(person.count)}</span><span className="person-share"><i style={{ width: `${Math.round((person.count / summary.messageCount) * 100)}%` }} /></span></div>)}</div>
+                <article className="voices-panel">
+                  <div className="visual-heading"><div><span>THE PEOPLE IN IT</span><h3>Every voice, its own cadence.</h3></div><span className="voice-seal">↗</span></div>
+                  <div className="voice-list">{summary.participants.slice(0, 5).map((person, index) => <div className="voice-row" key={person.name}><span className={`voice-dot voice-${index % 4}`} /><span className="voice-name">{person.name}</span><span className="voice-share"><i style={{ width: `${Math.max(2, (person.count / summary.messageCount) * 100)}%` }} /></span><span className="voice-count">{shortCount(person.count)}</span></div>)}</div>
                 </article>
               </div>
-              <p className="date-range-note">From <b>{formatRange(summary.firstMessageAt, summary.lastMessageAt)}</b>. Your full chat stays attached to this analysis.</p>
+              <p className="story-footnote"><span>✳</span> This is the outline. The interesting parts are in the details you choose to revisit.</p>
             </section>
           )}
 
-          <section className="saved-section" id="saved">
-            <div className="section-heading"><div><div className="eyebrow">PICK UP WHERE YOU LEFT OFF</div><h2>Saved analyses</h2></div><span className="section-count">{mode === "local" ? localAnalyses.length : cloudAnalyses.length} {mode === "local" ? "on this device" : "in your cloud"}</span></div>
-            {(mode === "local" ? localAnalyses.length === 0 : cloudAnalyses.length === 0) ? (
-              <div className="empty-saved"><span className="empty-orbit">◎</span><div><b>No saved stories yet</b><p>Your imported conversations will find a home here.</p></div><a href="#import">Import your first chat <span>↗</span></a></div>
+          <section className="collection-section" id="saved">
+            <div className="section-overline"><span>03 / THE COLLECTION</span><span>{mode === "local" ? "STORED IN THIS BROWSER" : "STORED IN YOUR ACCOUNT"}</span></div>
+            <div className="collection-heading"><div><h2>Conversations <em>kept.</em></h2><p>Pick up where you left off.</p></div><span className="collection-count">{analysisCount.toString().padStart(2, "0")} <small>ARCHIVES</small></span></div>
+            {analysisCount === 0 ? (
+              <div className="empty-collection"><div className="empty-graphic" aria-hidden="true"><span /><i /><b /></div><div><span className="eyebrow">A QUIET SHELF</span><h3>Nothing here just yet.</h3><p>Your first conversation can start a whole collection.</p></div><a href="#import">Bring one in <b>↑</b></a></div>
             ) : (
-              <div className="saved-list">{mode === "local" ? localAnalyses.map((analysis) => <article className="saved-row" key={analysis.id}><button className="saved-open" onClick={() => openLocal(analysis)}><span className={`platform-icon ${analysis.platform}`}>{analysis.platform === "whatsapp" ? "w" : "d"}</span><span className="saved-copy"><b>{analysis.title}</b><small>{analysis.platform === "whatsapp" ? "WhatsApp" : "Discord"} · {formatRange(analysis.summary.firstMessageAt, analysis.summary.lastMessageAt)}</small></span><span className="saved-messages">{shortCount(analysis.summary.messageCount)} messages</span></button><button className="remove-analysis" onClick={() => removeLocal(analysis.id)} aria-label={`Delete ${analysis.title}`}>×</button></article>) : cloudAnalyses.map((analysis) => <article className="saved-row" key={analysis.id}><button className="saved-open" onClick={() => { setSummary(analysis.summary); setMessages([]); setActiveTitle(analysis.title); setActivePlatform(analysis.platform); setActiveAnalysisId(analysis.id); }}><span className={`platform-icon ${analysis.platform}`}>{analysis.platform === "whatsapp" ? "w" : "d"}</span><span className="saved-copy"><b>{analysis.title}</b><small>{analysis.platform === "whatsapp" ? "WhatsApp" : "Discord"} · expires {formatDate(analysis.expires_at)}</small></span><span className="saved-messages">{shortCount(analysis.message_count)} messages</span></button><button className="remove-analysis" onClick={() => removeCloud(analysis.id)} aria-label={`Delete ${analysis.title}`}>×</button></article>)}</div>
+              <div className="archive-list">{mode === "local" ? localAnalyses.map((analysis, index) => <article className="archive-row" key={analysis.id}><span className="archive-number">{String(index + 1).padStart(2, "0")}</span><span className={`archive-platform ${analysis.platform}`}>{analysis.platform === "whatsapp" ? "W" : "D"}</span><button className="archive-open" onClick={() => openLocal(analysis)}><b>{analysis.title}</b><small>{platformLabel(analysis.platform)} <i>·</i> {formatDate(analysis.summary.firstMessageAt)} — {formatDate(analysis.summary.lastMessageAt)}</small></button><span className="archive-size">{shortCount(analysis.summary.messageCount)} <small>MESSAGES</small></span><button className="archive-delete" onClick={() => removeLocal(analysis.id)} aria-label={`Delete ${analysis.title}`}>×</button></article>) : cloudAnalyses.map((analysis, index) => <article className="archive-row" key={analysis.id}><span className="archive-number">{String(index + 1).padStart(2, "0")}</span><span className={`archive-platform ${analysis.platform}`}>{analysis.platform === "whatsapp" ? "W" : "D"}</span><button className="archive-open" onClick={() => { setSummary(analysis.summary); setMessages([]); setActiveTitle(analysis.title); setActivePlatform(analysis.platform); setActiveAnalysisId(analysis.id); }}><b>{analysis.title}</b><small>{platformLabel(analysis.platform)} <i>·</i> Expires {formatDate(analysis.expires_at)}</small></button><span className="archive-size">{shortCount(analysis.message_count)} <small>MESSAGES</small></span><button className="archive-delete" onClick={() => removeCloud(analysis.id)} aria-label={`Delete ${analysis.title}`}>×</button></article>)}</div>
             )}
           </section>
 
-          <footer className="footer-note" id="privacy"><span>Made for the moments between the messages.</span><span><i /> Private by default · <Link href="/account">Account settings ↗</Link></span></footer>
-        </div>
-      </main>
+          <footer className="archive-footer"><span>LORESYNC <i>·</i> A PLACE FOR WHAT STAYS WITH YOU</span><span><span className="footer-live" /> PRIVATE BY DEFAULT <i>·</i> <Link href="/account">ACCOUNT & ACCESS ↗</Link></span></footer>
+        </main>
+      </div>
     </div>
   );
 }
