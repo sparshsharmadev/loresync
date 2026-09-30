@@ -1,11 +1,10 @@
 import type { ChatMessage, ChatSummary } from "@loresync/core";
 import { getSupabase } from "./supabase";
+import { cloudRequest, isRecord } from "./cloud-request";
 
 const MESSAGE_BATCH_SIZE = 250;
 const MAX_UPLOAD_CHUNK_BYTES = 1_400_000;
 const MESSAGE_ARRAY_OVERHEAD = new TextEncoder().encode('{"messages":[]}').byteLength;
-
-type ApiResult<T> = T & { error?: string };
 
 export type CloudAnalysisRecord = {
   id: string;
@@ -17,6 +16,8 @@ export type CloudAnalysisRecord = {
   created_at: string;
   expires_at: string;
 };
+
+export type CloudAnalysisPage = { analyses: CloudAnalysisRecord[]; nextCursor: string | null };
 
 function splitMessageChunks(messages: ChatMessage[]) {
   const encoder = new TextEncoder();
@@ -42,31 +43,22 @@ function splitMessageChunks(messages: ChatMessage[]) {
   return chunks;
 }
 
-async function cloudRequest<T>(path: string, method: string, accessToken: string, body?: unknown): Promise<T> {
-  const response = await fetch(path, {
-    method,
-    cache: "no-store",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-    },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
-  const result = await response.json().catch(() => ({})) as ApiResult<T>;
-  if (!response.ok) throw new Error(result.error ?? "The cloud request could not be completed.");
-  return result;
-}
-
 async function getAccessToken() {
   const { data, error } = await getSupabase().auth.getSession();
   if (error || !data.session?.access_token) throw new Error("Sign in to use your cloud archive.");
   return data.session.access_token;
 }
 
-export async function loadCloudAnalyses(): Promise<CloudAnalysisRecord[]> {
+export async function loadCloudAnalyses(cursor?: string): Promise<CloudAnalysisPage> {
   const token = await getAccessToken();
-  const result = await cloudRequest<{ analyses: CloudAnalysisRecord[] }>("/api/analyses", "GET", token);
-  return result.analyses;
+  const query = new URLSearchParams({ limit: "50" });
+  if (cursor) query.set("cursor", cursor);
+  const result = await cloudRequest<CloudAnalysisPage>(`/api/analyses?${query}`, "GET", token);
+  if (!Array.isArray(result.analyses) || result.analyses.some((analysis) => !isRecord(analysis))) {
+    throw new Error("The cloud archive returned an invalid conversations list.");
+  }
+  if (result.nextCursor !== null && typeof result.nextCursor !== "string") throw new Error("The cloud archive returned an invalid page cursor.");
+  return result;
 }
 
 export async function saveCloudAnalysis(
@@ -76,20 +68,26 @@ export async function saveCloudAnalysis(
   consentAccepted: boolean,
 ): Promise<{ id: string; summary: ChatSummary }> {
   if (!consentAccepted) throw new Error("Confirm cloud storage before continuing.");
+  if (messages.length === 0) throw new Error("This export does not contain any messages to save.");
   const token = await getAccessToken();
   const { id } = await cloudRequest<{ id: string }>("/api/analyses", "POST", token, {
     title,
     platform,
     consentAccepted,
   });
+  if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id)) throw new Error("The cloud service returned an invalid conversation ID.");
 
   try {
     for (const chunk of splitMessageChunks(messages)) {
-      await cloudRequest<{ inserted: number }>(`/api/analyses/${id}/messages`, "POST", token, {
+      const batchId = crypto.randomUUID();
+      const result = await cloudRequest<{ inserted: number }>(`/api/analyses/${id}/messages`, "POST", token, {
+        batchId,
         messages: chunk,
-      });
+      }, true);
+      if (result.inserted !== chunk.length) throw new Error("The cloud service saved an unexpected number of messages.");
     }
     const completed = await cloudRequest<{ id: string; summary: ChatSummary }>(`/api/analyses/${id}/complete`, "POST", token);
+    if (completed.id !== id || !isRecord(completed.summary)) throw new Error("The cloud service returned an invalid analysis summary.");
     return { id: completed.id, summary: completed.summary };
   } catch (error) {
     await cloudRequest<{ deleted: boolean }>(`/api/analyses/${id}`, "DELETE", token).catch(() => undefined);

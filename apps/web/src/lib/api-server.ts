@@ -1,5 +1,7 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { applyApiRateLimit } from "./api-rate-limit";
+import { uuidSchema } from "./api-schemas";
+import { fetchWithTimeout } from "./fetch-timeout";
 
 export class ApiError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -8,16 +10,16 @@ export class ApiError extends Error {
   }
 }
 
-export async function enforceApiRateLimit(client: SupabaseClient, request: Request): Promise<void> {
-  const rateLimit = await applyApiRateLimit(client, request);
-  if (rateLimit.error) throw new ApiError(503, "Could not verify request limits. Please try again shortly.");
-  if (!rateLimit.allowed) throw new ApiError(429, "You are making requests too quickly. Wait a minute, then try again.");
-}
-
 export async function getAuthenticatedClient(request: Request): Promise<SupabaseClient> {
   const { client } = await getAuthenticatedContext(request);
   await enforceApiRateLimit(client, request);
   return client;
+}
+
+export async function enforceApiRateLimit(client: SupabaseClient, request: Request): Promise<void> {
+  const rateLimit = await applyApiRateLimit(client, request);
+  if (rateLimit.error) throw new ApiError(503, "Could not verify request limits. Please try again shortly.");
+  if (!rateLimit.allowed) throw new ApiError(429, "You’re making requests too quickly. Wait a minute, then try again.");
 }
 
 export async function getAuthenticatedContext(request: Request): Promise<{ client: SupabaseClient; user: User }> {
@@ -32,12 +34,21 @@ export async function getAuthenticatedContext(request: Request): Promise<{ clien
   const token = match[1];
   const client = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    global: { headers: { Authorization: "Bearer " + token } },
+    global: { headers: { Authorization: `Bearer ${token}` }, fetch: fetchWithTimeout(10_000) },
   });
   const { data, error } = await client.auth.getUser(token);
   if (error || !data.user) throw new ApiError(401, "Your session has expired. Sign in again.");
   return { client, user: data.user };
 }
+
+export function databaseSetupError(error: { code?: string; message?: string } | null | undefined, fallback: string): ApiError {
+  if (error?.message === "RATE_LIMITED") return new ApiError(429, "You are making requests too quickly. Wait a minute, then try again.");
+  if (error?.code === "PGRST205" || error?.code === "PGRST202" || error?.code === "42P01") {
+    return new ApiError(503, "The cloud database is not ready yet. Apply the SQL migrations in the project’s supabase/migrations folder, then try again.");
+  }
+  return new ApiError(500, fallback);
+}
+
 export async function readJsonBody<T>(request: Request, maxBytes: number): Promise<T> {
   if (!request.headers.get("content-type")?.toLowerCase().includes("application/json")) {
     throw new ApiError(415, "Send this request as JSON.");
@@ -87,5 +98,5 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function isUuid(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  return uuidSchema.safeParse(value).success;
 }

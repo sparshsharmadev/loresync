@@ -3,6 +3,7 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { apiErrorResponse, ApiError, getAuthenticatedContext, readJsonBody } from "@/lib/api-server";
 import { readAccountDeletionPassword } from "@/lib/account-deletion";
+import { fetchWithTimeout } from "@/lib/fetch-timeout";
 
 export async function DELETE(request: Request) {
   try {
@@ -19,12 +20,14 @@ export async function DELETE(request: Request) {
 
     const verifier = createClient(url, publishableKey, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { fetch: fetchWithTimeout(10_000) },
     });
     const { error: passwordError } = await verifier.auth.signInWithPassword({ email: user.email, password });
     if (passwordError) throw new ApiError(401, "We could not confirm your password. Your account was not deleted.");
 
     const admin = createClient(url, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+      global: { fetch: fetchWithTimeout(10_000) },
     });
     const { error } = await admin.auth.admin.deleteUser(user.id);
     if (error) throw new ApiError(500, "Could not delete your account. Please try again later.");
