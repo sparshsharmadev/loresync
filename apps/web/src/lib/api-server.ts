@@ -1,10 +1,17 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { applyApiRateLimit } from "./api-rate-limit";
 
 export class ApiError extends Error {
   constructor(public readonly status: number, message: string) {
     super(message);
     this.name = "ApiError";
   }
+}
+
+export async function enforceApiRateLimit(client: SupabaseClient, request: Request): Promise<void> {
+  const rateLimit = await applyApiRateLimit(client, request);
+  if (rateLimit.error) throw new ApiError(503, "Could not verify request limits. Please try again shortly.");
+  if (!rateLimit.allowed) throw new ApiError(429, "You are making requests too quickly. Wait a minute, then try again.");
 }
 
 export async function getAuthenticatedClient(request: Request): Promise<SupabaseClient> {
@@ -23,6 +30,7 @@ export async function getAuthenticatedClient(request: Request): Promise<Supabase
   });
   const { data, error } = await client.auth.getUser(token);
   if (error || !data.user) throw new ApiError(401, "Your session has expired. Sign in again.");
+  await enforceApiRateLimit(client, request);
   return client;
 }
 
