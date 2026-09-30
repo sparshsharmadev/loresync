@@ -92,7 +92,7 @@ export default function AccountPage() {
               <Link href="/" className="account-submit">Keep exploring locally <b>↗</b></Link>
             </div>
           ) : userEmail ? (
-            <div className="signed-in-state"><div className="signed-avatar">{userEmail[0]?.toUpperCase()}</div><p>Your archive is open.<br /><span>Cloud conversations are kept for one year.</span></p><Link href="/workspace" className="account-submit">Go to workspace <b>↗</b></Link><button className="quiet-button" onClick={signOut}>Sign out</button></div>
+            <div className="signed-in-state"><div className="signed-avatar">{userEmail[0]?.toUpperCase()}</div><p>Your archive is open.<br /><span>Cloud conversations are kept for one year.</span></p><Link href="/workspace" className="account-submit">Go to workspace <b>↗</b></Link><Link href="/account/delete" className="quiet-button">Delete cloud account</Link><button className="quiet-button" onClick={signOut}>Sign out</button></div>
           ) : (
             <>
               <div className="account-tabs" role="tablist" aria-label="Account action"><button className={mode === "signup" ? "selected" : ""} onClick={() => setMode("signup")}>CREATE ACCOUNT</button><button className={mode === "signin" ? "selected" : ""} onClick={() => setMode("signin")}>SIGN IN</button></div>

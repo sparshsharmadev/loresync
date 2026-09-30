@@ -1,0 +1,61 @@
+.page {
+  width: min(100% - 32px, 540px);
+  margin: clamp(50px, 10vh, 120px) auto;
+  padding: clamp(24px, 5vw, 48px);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.page h1 {
+  margin: 22px 0 10px;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: clamp(28px, 5vw, 42px);
+  font-weight: 500;
+  letter-spacing: -.04em;
+}
+
+.page > p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.page > p a { color: var(--accent); }
+
+.form { display: grid; gap: 13px; margin-top: 28px; }
+
+.form label {
+  display: grid;
+  gap: 6px;
+  color: var(--ink-muted);
+  font-family: var(--font-meta);
+  font-size: 9px;
+  letter-spacing: .1em;
+}
+
+.form input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 13px;
+  letter-spacing: normal;
+}
+
+.deleteButton {
+  margin-top: 8px;
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, #a4312b 35%, var(--line));
+  background: transparent;
+  color: #a4312b;
+  font-family: var(--font-meta);
+  font-size: 10px;
+  letter-spacing: .08em;
+}
+
+.deleteButton:disabled { opacity: .6; cursor: wait; }
+.status { padding: 10px 12px; border-left: 2px solid var(--accent); background: var(--surface-muted); color: var(--ink); font-size: 12px; }
