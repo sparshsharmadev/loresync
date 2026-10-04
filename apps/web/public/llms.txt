@@ -1,0 +1,41 @@
+# LoreSync
+
+> LoreSync is a browser-based tool for exploring personal WhatsApp and Discord chat exports through timelines, activity charts, participant summaries, and conversation patterns.
+
+LoreSync is an early-access web application. It parses WhatsApp `.txt` exports and Discord `.json` exports in the browser, then presents structured views of message activity. The original export file is not uploaded to LoreSync's cloud database.
+
+## Product
+
+- Home: https://loresyncweb.vercel.app/
+- How to use LoreSync: https://loresyncweb.vercel.app/guide
+- Privacy: https://loresyncweb.vercel.app/privacy
+- Terms: https://loresyncweb.vercel.app/terms
+- Cookies and browser storage: https://loresyncweb.vercel.app/cookies
+- Sitemap: https://loresyncweb.vercel.app/sitemap.xml
+
+## What it can show
+
+- Message activity over time, including interactive timelines and heatmaps.
+- Participant message counts and other participation patterns.
+- Date ranges, active days, and attachment markers present in the export.
+- Conversation views intended for exploring the data, not inferring emotional state or relationship quality.
+
+## Import and storage
+
+- WhatsApp plain-text `.txt` and Discord `.json` exports are supported; the current file-size limit is 25 MB.
+- Parsing and analysis happen in the browser.
+- Local mode saves an analysis in that browser's local storage database.
+- Cloud archive is optional. After a signed-in user chooses cloud storage and confirms, parsed message rows and analysis can be stored in that account's archive.
+- The original export file remains in the browser. Cloud analyses are scheduled to expire after one year; incomplete imports after one day, subject to deployment configuration.
+- Read the privacy page for the full data-handling details and deployment-specific limitations.
+
+## Important limitations
+
+- LoreSync does not currently score sentiment or issue relationship judgments.
+- It does not inspect or import the media attachments themselves; it can count markers found in the export.
+- It is early access. Do not assume a particular traffic capacity, availability guarantee, or analysis result without independent verification.
+
+## Attribution
+
+- Creator and source: Sparsh Sharma, https://github.com/sparshsharmadev/loresync
+- Portfolio: https://sparshsharma.lol/

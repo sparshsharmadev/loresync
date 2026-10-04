@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { LegalLayout } from "@/app/legal-layout";
 
-export const metadata: Metadata = { title: "Terms · LoreSync", description: "Terms for using the early access LoreSync conversation analysis app." };
+export const metadata: Metadata = {
+  title: "Terms · LoreSync",
+  description: "Terms for using the early access LoreSync conversation analysis app.",
+  alternates: { canonical: "/terms" },
+  openGraph: { url: "/terms", title: "Terms · LoreSync", description: "Terms and expectations for using the early access LoreSync app." },
+};
 
 export default function TermsPage() {
   return <LegalLayout eyebrow="A FEW CLEAR EXPECTATIONS" title="Terms of use." intro="These terms cover use of the LoreSync web app in its current early-access form. A deployment may provide additional terms that apply to it.">

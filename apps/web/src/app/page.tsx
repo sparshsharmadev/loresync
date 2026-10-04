@@ -1,7 +1,13 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { Brand } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-provider";
 import { SiteFooter } from "@/components/site-footer";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+  openGraph: { url: "/", title: "LoreSync — See the shape of your conversations" },
+};
 
 function ThreadFigure() {
   return (
@@ -64,6 +70,19 @@ export default function Home() {
         <div className="privacy-label"><span className="privacy-glyph">⌂</span><span>YOUR CHAT IS PERSONAL</span></div>
         <div className="privacy-copy"><h2>Your export<br /><em>stays on your device.</em></h2><p>Analysis happens in your browser. Keep parsed messages on this device, or choose cloud storage for an account-backed archive. The original export file stays in your browser.</p><Link href="/guide">See how it works <span>↗</span></Link></div>
         <div className="privacy-facts"><article><span>01 / START LOCAL</span><p>Try an analysis in this browser without creating an account.</p></article><article><span>02 / YOUR CHOICE</span><p>Choose device storage or cloud storage for each conversation. Delete it whenever you like.</p></article></div>
+      </section>
+
+      <section className="landing-method" id="questions" aria-labelledby="questions-title">
+        <div className="method-intro">
+          <p className="landing-eyebrow">CLEAR ANSWERS, BEFORE YOU IMPORT</p>
+          <h2 id="questions-title">Your history is personal.<br /><em>So are the choices.</em></h2>
+          <p>Know what LoreSync reads, what it saves, and what each chart means before you begin.</p>
+        </div>
+        <div className="method-rows">
+          <article><span>01</span><h3>What can I import?</h3><p>WhatsApp plain-text <code>.txt</code> exports and Discord <code>.json</code> exports up to 25 MB. Media files are not uploaded or analyzed.</p><b>↗</b></article>
+          <article><span>02</span><h3>Does my chat leave my device?</h3><p>Analysis runs in your browser. Your original export stays there. Cloud archive is optional and saves parsed messages only after you sign in, choose it, and confirm.</p><b>↗</b></article>
+          <article><span>03</span><h3>What do the insights mean?</h3><p>Charts describe activity in the export, such as message timing and participation. LoreSync does not infer sentiment or judge a relationship.</p><b>↗</b></article>
+        </div>
       </section>
 
       <SiteFooter />

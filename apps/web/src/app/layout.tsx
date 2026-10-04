@@ -30,8 +30,37 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LoreSync — See the shape of your conversations",
-  description: "Explore WhatsApp and Discord chat exports on your device, with optional cloud storage when you sign in.",
+  metadataBase: new URL("https://loresyncweb.vercel.app"),
+  title: {
+    default: "LoreSync — See the shape of your conversations",
+    template: "%s · LoreSync",
+  },
+  description: "Explore WhatsApp and Discord chat exports with interactive timelines, activity heatmaps, participant patterns, and reply insights. Analyze locally, with optional cloud archive.",
+  applicationName: "LoreSync",
+  category: "Productivity",
+  keywords: [
+    "WhatsApp chat analysis",
+    "Discord chat analysis",
+    "chat history visualizer",
+    "conversation timeline",
+    "message activity heatmap",
+    "private chat analysis",
+    "chat export viewer",
+  ],
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "LoreSync",
+    title: "LoreSync — See the shape of your conversations",
+    description: "Explore chat history through interactive timelines, activity heatmaps, participant patterns, and reply insights.",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LoreSync — See the shape of your conversations",
+    description: "Explore chat history through interactive timelines, activity heatmaps, participant patterns, and reply insights.",
+  },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 } },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

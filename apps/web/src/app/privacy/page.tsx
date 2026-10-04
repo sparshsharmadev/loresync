@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { LegalLayout } from "@/app/legal-layout";
 
-export const metadata: Metadata = { title: "Privacy · LoreSync", description: "How LoreSync handles chat exports, account details, and conversation analyses." };
+export const metadata: Metadata = {
+  title: "Privacy · LoreSync",
+  description: "How LoreSync handles chat exports, account details, and conversation analyses.",
+  alternates: { canonical: "/privacy" },
+  openGraph: { url: "/privacy", title: "Privacy · LoreSync", description: "Learn what LoreSync processes, where analyses are stored, and how to delete them." },
+};
 
 export default function PrivacyPage() {
   return <LegalLayout eyebrow="YOUR DATA, IN PLAIN LANGUAGE" title="Privacy, with the details left in." intro="LoreSync helps you look back at your own chat exports. This notice explains what the current app processes, where it is stored, and what choices you have.">

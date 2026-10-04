@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 import { LegalLayout } from "@/app/legal-layout";
 import { ImportGuide } from "@/components/import-guide";
 
-export const metadata: Metadata = { title: "How to use LoreSync", description: "A short guide to importing and reading your chat export in LoreSync." };
+export const metadata: Metadata = {
+  title: "How to use LoreSync",
+  description: "A short guide to importing and reading your chat export in LoreSync.",
+  alternates: { canonical: "/guide" },
+  openGraph: { url: "/guide", title: "How to use LoreSync", description: "Import a WhatsApp or Discord export, choose where it lives, and explore clear conversation patterns." },
+};
 
 export default function GuidePage() {
   return <LegalLayout eyebrow="START HERE · 01—04" title="A small guide to looking back." intro="Bring an export, choose where it lives, and read a few clear patterns. Your chat remains yours throughout.">

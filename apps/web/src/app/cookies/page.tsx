@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { LegalLayout } from "@/app/legal-layout";
 
-export const metadata: Metadata = { title: "Cookies & browser storage · LoreSync", description: "A clear explanation of cookies and browser storage used by LoreSync." };
+export const metadata: Metadata = {
+  title: "Cookies & browser storage · LoreSync",
+  description: "A clear explanation of cookies and browser storage used by LoreSync.",
+  alternates: { canonical: "/cookies" },
+  openGraph: { url: "/cookies", title: "Cookies & browser storage · LoreSync", description: "Learn how LoreSync uses browser storage and authentication cookies." },
+};
 
 export default function CookiesPage() {
   return <LegalLayout eyebrow="NO MYSTERY MEAT STORAGE" title="Cookies & browser storage." intro="LoreSync currently relies on browser storage for core features. The app source does not include advertising or analytics tags that set tracking cookies.">
