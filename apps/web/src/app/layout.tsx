@@ -31,6 +31,9 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://loresyncweb.vercel.app"),
+  verification: {
+    google: "j9zoyKoJEDuGyZRXFS7Ia9h9iPoy5mp_ys6MBEc9iYg",
+  },
   title: {
     default: "LoreSync — See the shape of your conversations",
     template: "%s · LoreSync",
