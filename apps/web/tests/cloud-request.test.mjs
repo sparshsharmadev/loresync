@@ -25,5 +25,5 @@ test("does not retry a non-idempotent request and rejects malformed success resp
     throw new TypeError("network failure");
   }), /timed out or lost its connection/);
   assert.equal(attempts, 1);
-  await assert.rejects(() => cloudRequest("/api/import", "POST", "token", {}, false, async () => new Response("not-json")), /invalid response/);
+  await assert.rejects(() => cloudRequest("/api/import", "POST", "token", {}, false, async () => new Response("not-json")), /unexpected response/);
 });

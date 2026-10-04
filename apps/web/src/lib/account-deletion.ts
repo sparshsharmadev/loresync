@@ -1,4 +1,4 @@
-import { deleteAccountSchema } from "./api-schemas";
+import { deleteAccountSchema } from "./api-schemas.ts";
 
 export function readAccountDeletionPassword(body: unknown): string | null {
   const parsed = deleteAccountSchema.safeParse(body);

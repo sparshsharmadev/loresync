@@ -1,22 +1,25 @@
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, DM_Sans, IBM_Plex_Mono, Instrument_Serif } from "next/font/google";
+import { Archivo, IBM_Plex_Mono, Manrope, Newsreader } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
+import { StorageNotice } from "@/components/storage-notice";
 import "./globals.css";
 
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
-const bricolage = Bricolage_Grotesque({
-  variable: "--font-bricolage",
+const archivo = Archivo({
+  variable: "--font-archivo",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
-const instrument = Instrument_Serif({
-  variable: "--font-instrument",
+const newsreader = Newsreader({
+  variable: "--font-newsreader",
   subsets: ["latin"],
-  weight: "400",
+  weight: ["400", "500"],
   style: ["normal", "italic"],
 });
 
@@ -28,16 +31,16 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: "LoreSync — See the shape of your conversations",
-  description: "Turn WhatsApp and Discord chat exports into private, observable conversation insights. Start on your device, no account needed.",
+  description: "Explore WhatsApp and Discord chat exports on your device, with optional cloud storage when you sign in.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${bricolage.variable} ${instrument.variable} ${plexMono.variable}`}
+      className={`${manrope.variable} ${archivo.variable} ${newsreader.variable} ${plexMono.variable}`}
     >
-      <body>{children}</body>
+      <body><ThemeProvider>{children}<StorageNotice /></ThemeProvider></body>
     </html>
   );
 }

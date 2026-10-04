@@ -1,8 +1,7 @@
 import Link from "next/link";
-
-function Brand() {
-  return <Link href="/" className="landing-brand"><svg className="landing-mark" viewBox="0 0 36 36" aria-hidden="true"><path d="M4 10h7c6 0 6 8 12 8h9"/><path d="M4 26h7c6 0 6-8 12-8"/><circle cx="4" cy="10" r="2"/><circle cx="4" cy="26" r="2"/><circle cx="32" cy="18" r="2"/></svg><span>lore<span>sync</span></span></Link>;
-}
+import { Brand } from "@/components/brand";
+import { ThemeToggle } from "@/components/theme-provider";
+import { SiteFooter } from "@/components/site-footer";
 
 function ThreadFigure() {
   return (
@@ -29,17 +28,19 @@ export default function Home() {
       <header className="landing-header">
         <Brand />
         <nav aria-label="Main navigation"><a href="#how-it-works">How it works</a><a href="#privacy">Privacy</a></nav>
-        <Link className="landing-open" href="/workspace">Open workspace <span>↗</span></Link>
+        <div className="landing-header-actions"><ThemeToggle /><Link className="landing-open" href="/account">Sign in <span>↗</span></Link></div>
       </header>
 
       <section className="landing-hero">
         <div className="landing-kicker"><span>CONVERSATIONS, WITH CONTEXT</span><span>WHATSAPP · DISCORD</span></div>
         <div className="landing-grid">
           <div className="landing-copy">
-            <p className="landing-eyebrow">A BETTER WAY TO LOOK BACK</p>
-            <h1>Who was there.<br />When you spoke.<br /><em>How it changed.</em></h1>
+            <div className="landing-detonation">
+              <p className="landing-eyebrow">A BETTER WAY TO LOOK BACK</p>
+              <h1>Who was there.<br />When you spoke.<br /><em>How it changed.</em></h1>
+            </div>
             <p className="landing-lede">A private, visual reading of your chat history: its timing, participation, and the days you shared.</p>
-            <div className="landing-actions"><Link className="landing-button" href="/workspace#import">Bring in a conversation <span>↗</span></Link><span>No account needed to start</span></div>
+            <div className="landing-actions"><Link className="landing-button" href="/workspace/import">Analyze on this device <span>↗</span></Link><span>Start locally without an account. Sign in only for cloud sync.</span></div>
           </div>
           <ThreadFigure />
         </div>
@@ -61,11 +62,11 @@ export default function Home() {
 
       <section className="landing-privacy" id="privacy">
         <div className="privacy-label"><span className="privacy-glyph">⌂</span><span>YOUR CHAT IS PERSONAL</span></div>
-        <div className="privacy-copy"><h2>Your export<br /><em>stays on your device.</em></h2><p>Analysis happens in your browser. Cloud sync is optional: only parsed messages are saved to your account for one year. The original export never leaves your device.</p><Link href="/workspace#import">Choose how to begin <span>↗</span></Link></div>
-        <div className="privacy-facts"><article><span>01 / LOCAL</span><p>Your export is read in your browser. Remove the analysis whenever you like.</p></article><article><span>02 / CLOUD, OPTIONAL</span><p>Sign in only if you want sync. Delete your cloud analysis at any time.</p></article></div>
+        <div className="privacy-copy"><h2>Your export<br /><em>stays on your device.</em></h2><p>Analysis happens in your browser. Keep parsed messages on this device, or choose cloud storage for an account-backed archive. The original export file stays in your browser.</p><Link href="/guide">See how it works <span>↗</span></Link></div>
+        <div className="privacy-facts"><article><span>01 / START LOCAL</span><p>Try an analysis in this browser without creating an account.</p></article><article><span>02 / YOUR CHOICE</span><p>Choose device storage or cloud storage for each conversation. Delete it whenever you like.</p></article></div>
       </section>
 
-      <footer className="landing-footer"><Brand /><span>BUILT FOR THE CHATS THAT MATTER.</span><Link href="/workspace">Enter LoreSync <span>↗</span></Link></footer>
+      <SiteFooter />
     </main>
   );
 }

@@ -44,8 +44,11 @@ export async function getAuthenticatedContext(request: Request): Promise<{ clien
 export function databaseSetupError(error: { code?: string; message?: string } | null | undefined, fallback: string): ApiError {
   if (error?.message === "RATE_LIMITED") return new ApiError(429, "You are making requests too quickly. Wait a minute, then try again.");
   if (error?.code === "PGRST205" || error?.code === "PGRST202" || error?.code === "42P01") {
+    console.error("LoreSync database schema is unavailable.", { code: error.code });
     return new ApiError(503, "The cloud database is not ready yet. Apply the SQL migrations in the project’s supabase/migrations folder, then try again.");
   }
+  // Keep a useful production signal without logging user message text, SQL, or tokens.
+  console.error("LoreSync database request failed.", { code: error?.code ?? "unknown" });
   return new ApiError(500, fallback);
 }
 
@@ -86,7 +89,10 @@ export async function readJsonBody<T>(request: Request, maxBytes: number): Promi
 
 export function apiErrorResponse(error: unknown): Response {
   if (error instanceof ApiError) {
-    return Response.json({ error: error.message }, { status: error.status, headers: { "Cache-Control": "no-store" } });
+    return Response.json({ error: error.message }, {
+      status: error.status,
+      headers: { "Cache-Control": "no-store", ...(error.status === 429 ? { "Retry-After": "60" } : {}) },
+    });
   }
   // Do not log request bodies, tokens, or database error details.
   console.error("LoreSync API request failed.");

@@ -16,7 +16,7 @@ const importedMessageSchema = z.object({
 
 export const appendMessagesSchema = z.object({
   batchId: z.uuid(),
-  messages: z.array(importedMessageSchema).min(1).max(250),
+  messages: z.array(importedMessageSchema).min(1).max(10_000),
 }).strict();
 
 const photoSchema = z.string().max(500_000).refine((value) => value === "" || /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(value));

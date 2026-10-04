@@ -2,7 +2,6 @@ import { apiErrorResponse, ApiError, databaseSetupError, getAuthenticatedClient,
 import { appendMessagesSchema, messageCursorSchema, messagePageQuerySchema } from "@/lib/api-schemas";
 
 const DEFAULT_PAGE_SIZE = 50;
-const MAX_PAGE_SIZE = 100;
 
 type MessageCursor = { sentAt: string; id: string };
 const MAX_CHUNK_BYTES = 1_500_000;
@@ -47,6 +46,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       p_batch_id: parsed.data.batchId,
       p_messages: messages,
     });
+    if (error?.code === "22023" && error.message === "Invalid message batch") {
+      throw new ApiError(503, "The cloud database rejected this batch size. Confirm migration 202610040001_expand_import_batch_count.sql is applied; the app now sends smaller payloads to stay within the database limit.");
+    }
     if (error) throw databaseSetupError(error, "Could not save this message batch. The import may have expired; start again.");
     if (typeof inserted !== "number") throw new ApiError(400, "Could not save this message batch. The import may have expired; start again.");
     return Response.json({ inserted }, { headers: { "Cache-Control": "no-store" } });

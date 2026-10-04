@@ -15,6 +15,7 @@ export async function cloudRequest<T>(
   body?: unknown,
   retryIdempotently = false,
   fetcher: typeof fetch = fetch,
+  onRateLimitWait?: (milliseconds: number) => void,
 ): Promise<T> {
   const attempts = retryIdempotently ? 3 : 1;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -36,6 +37,13 @@ export async function cloudRequest<T>(
     }
 
     const responseBody: unknown = await response.json().catch(() => null);
+    if (retryIdempotently && response.status === 429 && attempt + 1 < attempts) {
+      const retryAfterSeconds = Number(response.headers.get("Retry-After"));
+      const retryAfterMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : 60_000;
+      onRateLimitWait?.(retryAfterMs);
+      await wait(retryAfterMs);
+      continue;
+    }
     if (retryIdempotently && response.status >= 500 && attempt + 1 < attempts) {
       await wait(250 * (attempt + 1));
       continue;
@@ -44,7 +52,10 @@ export async function cloudRequest<T>(
       const message = isRecord(responseBody) && typeof responseBody.error === "string" ? responseBody.error : "The cloud request could not be completed.";
       throw new Error(message);
     }
-    if (!isRecord(responseBody)) throw new Error("The cloud service returned an invalid response.");
+    if (!isRecord(responseBody)) {
+      const contentType = response.headers.get("content-type") ?? "unknown content type";
+      throw new Error(`The cloud service returned an unexpected response (${response.status}, ${contentType}) to ${method} ${path}.`);
+    }
     return responseBody as ApiResult<T>;
   }
   throw new Error("The cloud request could not be completed. Please try again.");
